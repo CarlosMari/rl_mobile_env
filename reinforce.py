@@ -68,6 +68,7 @@ class PiApproximationWithNN(nn.Module):
         loss = delta  * sum_prob
         loss.backward()
         self.optimizer.step()
+        return loss
 
 
 class Baseline(object):
@@ -140,8 +141,10 @@ def REINFORCE(
     """
     Gs = []
     for i in tqdm(range(num_episodes)):
+        adv = 0
         # Generate an episode
         done = False
+        loss = 0
         state,_ = env.reset()
         states = []
         actions = []
@@ -158,18 +161,18 @@ def REINFORCE(
 
         for t in range(len(states)):
             # calculate all returns
-            G= 0 
-            #G = sum(rewards[t:])
-            for k in range(t,len(states)):
-                G += (gamma ** (k-t)) * rewards[k]
+            G = sum(rewards[t:])
             if t == 0:
                 Gs.append(G)
-            delta = G - V(states[t])
+            delta = G #- V(states[t])
+            adv += delta
 
-            pi.update(states[t],actions[t], gamma**t, -delta)
+            loss += pi.update(states[t],actions[t], gamma**t, -delta)
             V.update(states[t], G)
         wandb.log(
-            {'return': Gs[0]}
+            {'return': Gs[i],
+             'Advantage': adv/len(states),
+             'Loss': loss}
         )
     return Gs
 
