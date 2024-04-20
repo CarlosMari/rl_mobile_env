@@ -8,6 +8,32 @@ import numpy as np
 import wandb
 from tqdm import tqdm
 
+
+import gymnasium as gym
+from gymnasium import logger
+from gymnasium.wrappers.monitoring import video_recorder
+
+VIDEO_PATH = 'VIDEO/'
+CHECKPOINT_PATH = 'CHECKPOINT'
+def capped_cubic_video_schedule(episode_id: int) -> bool:
+    """The default episode trigger.
+
+    This function will trigger recordings at the episode indices 0, 1, 8, 27, ..., :math:`k^3`, ..., 729, 1000, 2000, 3000, ...
+
+    Args:
+        episode_id: The episode number
+
+    Returns:
+        If to apply a video schedule number
+    """
+    if episode_id < 10000:
+        return int(round(episode_id ** (1.0 / 3))) ** 3 == episode_id
+    else:
+        return episode_id % 10000 == 0
+
+
+device = torch.device("cpu")
+
 class PiApproximationWithNN(nn.Module):
     def __init__(self, state_dims, action_space, alpha):
         """
@@ -28,7 +54,7 @@ class PiApproximationWithNN(nn.Module):
             nn.Linear(70,35),
             nn.GELU(),
             nn.Linear(35,action_space[0]*action_space[1]),
-        ).to(torch.float)
+        ).to(torch.float).to(device)
 
         self.sftmax = nn.Softmax(dim=1)
 
@@ -38,7 +64,7 @@ class PiApproximationWithNN(nn.Module):
 
 
     def forward(self, states, return_prob=False):
-        states = torch.tensor(states)
+        states = torch.tensor(states).to(device)
         states = states.flatten()
         #print(type(states))
         #print(states.shape)
@@ -49,7 +75,7 @@ class PiApproximationWithNN(nn.Module):
         if return_prob:
             return out
         action = torch.distributions.Categorical(out).sample()
-        return action.numpy()
+        return action.cpu().numpy()
 
 
     def update(self, state, actions, gamma_t, delta):
@@ -65,10 +91,10 @@ class PiApproximationWithNN(nn.Module):
         for i in range(len(policy)):
             sum_prob += torch.log(policy[i][actions[i]])
 
-        loss = delta  * sum_prob
+        loss = -delta  * sum_prob
         loss.backward()
         self.optimizer.step()
-        return loss
+        return loss.cpu()
 
 
 class Baseline(object):
@@ -164,16 +190,19 @@ def REINFORCE(
             G = sum(rewards[t:])
             if t == 0:
                 Gs.append(G)
-            delta = G #- V(states[t])
+            delta = G - V(states[t])
             adv += delta
 
-            loss += pi.update(states[t],actions[t], gamma**t, -delta)
+            loss += pi.update(states[t],actions[t], gamma**t, delta)
             V.update(states[t], G)
         wandb.log(
             {'return': Gs[i],
              'Advantage': adv/len(states),
-             'Loss': loss}
+             'Loss': loss,
+             'reward': sum(rewards)/len(rewards)}
         )
-    return Gs
 
-    raise NotImplementedError()
+        if capped_cubic_video_schedule(i):
+            torch.save(V.state_dict(), f'{CHECKPOINT_PATH}/VALUE/{i}.pth')
+            torch.save(pi.state_dict(), f'{CHECKPOINT_PATH}/POLICY/{i}.pth')
+    return Gs
