@@ -6,18 +6,19 @@ from reinforce import REINFORCE, PiApproximationWithNN, Baseline, VApproximation
 from wrapper import FlattenedActionWrapper
 
 import wandb
-
-
+import torch
+DEVICE = torch.device('cpu')
 def test_reinforce(with_baseline):
-    env = gym.make("mobile-small-ma-v0")
+    env = gym.make("mobile-small-ma-v0", render_mode = 'human')
     #actions_shape = (env.NUM_STATIONS+1, env.NUM_USERS)
+    actions = env.NUM_STATIONS + 1
     gamma = 1.
     lr = 3e-4
 
     pi = PiApproximationWithNN(
         13,
-        4,
-        lr)
+        actions,
+        lr).to(DEVICE)
     """pi = PIGreedy(
         env.observation_space.sample().shape,
         actions_shape,
@@ -31,11 +32,11 @@ def test_reinforce(with_baseline):
     if with_baseline:
         B = VApproximationWithNN(
             13,
-            lr)
+            lr).to(DEVICE)
     else:
         B = Baseline(0.)
 
-    return REINFORCE(env,gamma,10000,pi,B)
+    return REINFORCE(env,gamma,500000,pi,B)
 
 if __name__ == "__main__":
     wandb.init(

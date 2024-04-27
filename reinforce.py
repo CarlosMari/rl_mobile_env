@@ -15,6 +15,7 @@ from gymnasium.wrappers.monitoring import video_recorder
 
 VIDEO_PATH = 'VIDEO/'
 CHECKPOINT_PATH = 'CHECKPOINT'
+DEVICE = torch.device('cpu')
 def capped_cubic_video_schedule(episode_id: int) -> bool:
     """The default episode trigger.
 
@@ -67,37 +68,47 @@ class PiApproximationWithNN(nn.Module):
         alpha: learning rate
         """
         super(PiApproximationWithNN, self).__init__()
+        self.action_space = action_space
 
         # TODO: implement the rest here
 
         super(PiApproximationWithNN, self).__init__()
         self.action_space = action_space
-        print
         self.model = nn.Sequential(
-            nn.Linear(state_dims, 32),
+            nn.Linear(state_dims, 128),
             nn.LeakyReLU(),
-            nn.Linear(32, 32),
+            nn.LayerNorm(128),
+            nn.Linear(128, 256),
             nn.LeakyReLU(),
-            nn.Linear(32,16),
+            nn.LayerNorm(256),
+            nn.Linear(256,128),
             nn.LeakyReLU(),
-            nn.Linear(16,4)
-        ).to(torch.float).to(device)
+            nn.LayerNorm(128),
+            nn.Linear(128,action_space)
+        ).to(torch.double).to(DEVICE)
 
         self.sftmax = nn.Softmax()
 
         self.alpha = alpha
         self.optimizer = torch.optim.Adam(params=self.model.parameters(),lr=alpha, betas=[0.9,0.99])
+        self.to(DEVICE)
 
 
 
     def forward(self, states, return_prob=False):
         # staes.shape -> (5,13)
-        states = torch.tensor(states).to(device)
+        states = torch.tensor(states).double()
         out = self.model(states)
-        out = self.sftmax(out)
+        out_prob = self.sftmax(out)
         if return_prob:
-            return out
-        action = torch.distributions.Categorical(out).sample()
+            return out_prob
+        
+        '''for dim in range(len(out)):
+            if any(torch.isnan(out[dim])):
+                print(f'State: {states[dim]}')
+                print(f'Activation: {out[dim]}')
+                print(f'Probs: {out_prob[dim]}')'''
+        action = torch.distributions.Categorical(out_prob).sample()
         return action.cpu().numpy()
 
 
@@ -113,14 +124,14 @@ class PiApproximationWithNN(nn.Module):
         # actions -> (5, 1) -> (5,4)
         self.optimizer.zero_grad()
 
-        actions = torch.from_numpy(actions)
+        actions = torch.from_numpy(actions).to(DEVICE)
         # policy shape -> (5,4)
         probabilities = self(state, return_prob=True)
         one_hot = F.one_hot(actions, 4)
         prob_taken = one_hot * probabilities
-        prob_taken_reduced = torch.sum(prob_taken, dim=1)
+        prob_taken_reduced = torch.log(torch.sum(prob_taken, dim=1))
 
-        loss = torch.from_numpy(-delta)  * prob_taken_reduced
+        loss = torch.from_numpy(-delta).float()  * prob_taken_reduced
         loss =  torch.sum(loss)/len(loss)
         loss.backward()
         self.optimizer.step()
@@ -155,29 +166,35 @@ class VApproximationWithNN(nn.Module):
         
         # TODO: implement the rest here
         self.model = nn.Sequential(
-            nn.Linear(state_dims, 32),
+            nn.Linear(state_dims, 128),
             nn.ReLU(),
-            nn.Linear(32,16),
+            nn.Linear(128,256),
             nn.ReLU(),
-            nn.Linear(16,1)
-        ).to(torch.float32)
+            nn.Linear(256,128),
+            nn.ReLU(),
+            nn.Linear(128,1)
+        ).to(torch.float32).to(DEVICE)
+
+        self.to(DEVICE)
 
         self.optimizer = torch.optim.Adam(params=self.model.parameters(),lr=alpha)
+        self.loss = torch.nn.MSELoss()
 
     def forward(self, states) -> float:
         if isinstance(states, np.ndarray):
-            states = torch.from_numpy(states).to(torch.float32)
+            states = torch.from_numpy(states).to(torch.float32).to(DEVICE)
         return self.model(states)
     
 
     def update(self, states, G):
-        states = torch.tensor(states).to(torch.float32)
+
+        states = torch.tensor(states).to(torch.float32).to(DEVICE)
         self.optimizer.zero_grad()
-        G = torch.from_numpy(G)
-        loss = (G - self(states))**2
-        loss = torch.sum(loss)/len(loss)
+        G = torch.from_numpy(G).to(torch.float).to(DEVICE)
+        loss = self.loss(self(states).squeeze(1), G)
         loss.backward()
         self.optimizer.step()
+        return loss.detach().cpu()
 
 def REINFORCE(
     env, #open-ai environment
@@ -201,13 +218,15 @@ def REINFORCE(
     for i in tqdm(range(num_episodes)):
         # Generate an episode
         done = False
-        loss = 0
+        loss = []
+        value_loss = []
         state,_ = env.reset()
         states = []
         actions = []
         rewards = []
         # Get the trajectory of the episode
         while not done:
+            #env.render()
             state = np.array([array for array in state.values()])
             action = pi(state)
             ordered_actions = OrderedDict([(i, action[i]) for i in range(len(action))])
@@ -218,20 +237,21 @@ def REINFORCE(
             actions.append(action)
             rewards.append(reward)
             state = new_state
-
+        #env.close()
 
         for t in range(len(states)):
             # calculate all returns
             G = np.sum(np.array(rewards)[t:,:], axis=0)
             if t == 0:
                 Gs.append(G)
-            value = V(states[t]).squeeze(1).detach().numpy()
+            value = V(states[t]).squeeze(1).detach().cpu().numpy()
             delta = G - value
-            loss += pi.update(states[t],actions[t], gamma**t, delta)
-            V.update(states[t], G)
+            loss.append(pi.update(states[t],actions[t], gamma**t, delta))
+            value_loss.append(V.update(states[t], G).cpu().detach())
         wandb.log(
-            {'return': np.mean(Gs[i])}
-        )
+            {'return': np.mean(Gs[i]),
+             #'v_loss': np.mean(value_loss)}
+        })
 
         if capped_cubic_video_schedule(i) and False:
             torch.save(V.state_dict(), f'{CHECKPOINT_PATH}/VALUE/{i}.pth')
