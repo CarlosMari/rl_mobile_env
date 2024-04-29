@@ -162,7 +162,7 @@ wandb/
 runs/
 models/
 CHECKPOINT/
-
+.DS_STORE
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
