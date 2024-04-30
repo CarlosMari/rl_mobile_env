@@ -88,8 +88,8 @@ def REINFORCE(
         while not done:
             #env.render()
             #state = np.array([np.append(array[0:6],array[10:13]) for array in state.values()])
-            #state = np.array([array[0:6] for array in state.values()])
-            state = np.array([array[0:10] for array in state.values()])
+            state = np.array([array[0:6] for array in state.values()])
+            #state = np.array([array[0:10] for array in state.values()])
             action = pi(state)
             parsed_actions = action_handler(action, state)
             ordered_actions = OrderedDict([(i, parsed_actions[i]) for i in range(len(parsed_actions))])
