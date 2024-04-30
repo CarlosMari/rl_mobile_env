@@ -25,7 +25,6 @@ class HeuristicAgentSNR(Agent):
             # If we are not connected we connect to the best bs
             else:
                 actions.append(action + 1)
-        print(actions)
         return actions
 
 class HeuristicAgentUtility(Agent):

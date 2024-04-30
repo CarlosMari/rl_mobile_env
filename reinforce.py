@@ -62,7 +62,8 @@ def REINFORCE(
     num_episodes:int,
     pi,
     V,
-    LOG) -> Iterable[float]:
+    LOG=False,
+    ActionWrapper=True) -> Iterable[float]:
     """
     implement REINFORCE algorithm with and without baseline.
 
@@ -91,8 +92,9 @@ def REINFORCE(
             state = np.array([array[0:6] for array in state.values()])
             #state = np.array([array[0:10] for array in state.values()])
             action = pi(state)
-            parsed_actions = action_handler(action, state)
-            ordered_actions = OrderedDict([(i, parsed_actions[i]) for i in range(len(parsed_actions))])
+            if ActionWrapper:
+                action = action_handler(action, state)
+            ordered_actions = OrderedDict([(i, action[i]) for i in range(len(action))])
             new_state, reward, terminated, truncated, _ = env.step(ordered_actions)
             reward = np.array([array for array in reward.values()])
             done = terminated or truncated 

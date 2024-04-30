@@ -18,6 +18,7 @@ parser.add_argument('--episodes', type=int, default=10000)
 parser.add_argument('--name', type=str, default='Test')
 parser.add_argument('--num_iter', type=int, default=1)
 parser.add_argument('--log', type=int, default=1)
+parser.add_argument('--wrapper', type=int, default=1)
 
 args = parser.parse_args()
 AGENT = args.agent
@@ -26,6 +27,8 @@ EPISODES = args.episodes
 NAME = args.name
 NUM_ITER = args.num_iter
 LOG = args.log == 1
+WRAPPER = args.wrapper == 1
+
 print(f'LOGGING IS SET TO {LOG}')
 DEVICE = torch.device('cpu')
 
@@ -58,7 +61,7 @@ def test_reinforce():
     else:
         B = Baseline(0.)
 
-    return REINFORCE(env,gamma,EPISODES,pi,B,LOG)
+    return REINFORCE(env,gamma,EPISODES,pi,B,LOG,WRAPPER)
 
 if __name__ == "__main__":
     if LOG:
