@@ -14,16 +14,16 @@ class NNAgent(nn.Module):
             self.action_space = action_space
             self.DEVICE = DEVICE
             self.model = nn.Sequential(
-                nn.Linear(state_dims, 128),
+                nn.Linear(state_dims, 32),
                 nn.LeakyReLU(),
-                nn.LayerNorm(128),
-                nn.Linear(128, 256),
+                nn.LayerNorm(32),
+                nn.Linear(32, 64),
                 nn.LeakyReLU(),
-                nn.LayerNorm(256),
-                nn.Linear(256,128),
+                nn.LayerNorm(64),
+                nn.Linear(64,32),
                 nn.LeakyReLU(),
-                nn.LayerNorm(128),
-                nn.Linear(128,action_space)
+                nn.LayerNorm(32),
+                nn.Linear(32,action_space)
             ).to(torch.double).to(DEVICE)
 
             self.sftmax = nn.Softmax()

@@ -4,14 +4,15 @@ import gymnasium as gym
 import mobile_env 
 from reinforce import REINFORCE, Baseline
 from agents.NNAgent import VApproximationWithNN, NNAgent 
-from agents.HeuristicAgent import HeuristicAgentSNR, HeuristicAgentUtility
+from agents.HeuristicAgent import HeuristicAgentSNR, HeuristicAgentUtility, ProductRule
 from agents.RandomAgent import RandomAgent
+
 import wandb
 import torch
 import argparse
 
 parser = argparse.ArgumentParser(prog='Mobile-ENV')
-parser.add_argument('--agent', choices=['reinforce','utility','snr','random'], default='utility')
+parser.add_argument('--agent', choices=['reinforce','utility','snr','random', 'custom'], default='utility')
 parser.add_argument('--baseline', type=bool, default=True)
 parser.add_argument('--episodes', type=int, default=10000)
 parser.add_argument('--name', type=str, default='Test')
@@ -31,12 +32,12 @@ DEVICE = torch.device('cpu')
 def test_reinforce():
     env = gym.make("mobile-small-ma-v0", render_mode = 'human')
     #actions_shape = (env.NUM_STATIONS+1, env.NUM_USERS)
-    actions = env.NUM_STATIONS + 1
+    actions = 2* env.NUM_STATIONS + 1
     
     gamma = 1.
     lr = 3e-4
     if AGENT == 'reinforce':
-        pi = NNAgent(13,actions,lr).to(DEVICE)
+        pi = NNAgent(6,actions,lr).to(DEVICE)
         
     elif AGENT == 'utility':
         pi = HeuristicAgentUtility(13,0,0)
@@ -47,9 +48,12 @@ def test_reinforce():
     elif AGENT == 'random':
         pi = RandomAgent(13,0,0)
 
+    elif AGENT == 'custom':
+        pi = ProductRule(13,0,0)
+
     if BASELINE:
         B = VApproximationWithNN(
-            13,
+            6,
             lr).to(DEVICE)
     else:
         B = Baseline(0.)
@@ -58,7 +62,7 @@ def test_reinforce():
 
 if __name__ == "__main__":
     if LOG:
-        wandb.init(project='MOBILE-ENV_2',name = NAME)
+        wandb.init(project='MOBILE-ENV',name = NAME)
 
     for _ in range(NUM_ITER):
         training_progress = test_reinforce()

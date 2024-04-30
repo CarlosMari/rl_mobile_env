@@ -87,9 +87,12 @@ def REINFORCE(
         # Get the trajectory of the episode
         while not done:
             #env.render()
-            state = np.array([array for array in state.values()])
+            #state = np.array([np.append(array[0:6],array[10:13]) for array in state.values()])
+            #state = np.array([array[0:6] for array in state.values()])
+            state = np.array([array[0:10] for array in state.values()])
             action = pi(state)
-            ordered_actions = OrderedDict([(i, action[i]) for i in range(len(action))])
+            parsed_actions = action_handler(action, state)
+            ordered_actions = OrderedDict([(i, parsed_actions[i]) for i in range(len(parsed_actions))])
             new_state, reward, terminated, truncated, _ = env.step(ordered_actions)
             reward = np.array([array for array in reward.values()])
             done = terminated or truncated 
@@ -120,3 +123,30 @@ def REINFORCE(
             torch.save(V.state_dict(), f'{CHECKPOINT_PATH}/VALUE/{i}.pth')
             torch.save(pi.state_dict(), f'{CHECKPOINT_PATH}/POLICY/{i}.pth')
     return Gs
+
+
+def action_handler(actions, observation):
+    new_actions = []
+    for i in range(len(actions)):
+        obs = observation[i]
+        if actions[i] == 0:
+            new_actions.append(0)
+
+        elif actions[i] < 4:
+            if obs[actions[i]-1]:
+                new_actions.append(0)
+
+            else:
+                new_actions.append(actions[i])
+
+        else:
+            if obs[actions[i]-3-1]:
+                new_actions.append(actions[i]-3)
+
+            else:
+                new_actions.append(0)
+    return new_actions
+
+
+
+        
