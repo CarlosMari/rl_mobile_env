@@ -8,14 +8,14 @@ def register(config):
     import mobile_env
     from mobile_env.wrappers.multi_agent import RLlibMAWrapper
 
-    env = gymnasium.make("mobile-medium-ma-v0")
+    env = gymnasium.make("mobile-small-ma-v0")
     return RLlibMAWrapper(env)
 
 # register the predefined scenario with RLlib
-register_env("mobile-medium-ma-v0", register)
+register_env("mobile-small-ma-v0", register)
 
 # init ray with available CPUs (and GPUs) and init ray
-"""ray.init(
+ray.init(
   num_cpus=6,   # change to your available number of CPUs
   include_dashboard=False,
   ignore_reinit_error=True,
@@ -31,7 +31,7 @@ from ray.tune.stopper import MaximumIterationStopper
 # Create an RLlib config using multi-agent PPO on mobile-env's small scenario.
 config = (
     PPOConfig()
-    .environment(env="mobile-medium-ma-v0")
+    .environment(env="mobile-small-ma-v0")
     # Here, we configure all agents to share the same policy.
     .multi_agent(
         policies={"shared_policy": PolicySpec()},
@@ -49,7 +49,7 @@ tuner = ray.tune.Tuner(
         # Save the training progress and checkpoints locally under the specified subfolder.
         storage_path="/Users/carlosmarinoguera/Documents/class/UT/RL/PROJECT/results_rllib",
         # Control training length by setting the number of iterations. 1 iter = 4000 time steps by default.
-        stop=MaximumIterationStopper(max_iter=300),
+        stop=MaximumIterationStopper(max_iter=250),
         checkpoint_config=ray.air.CheckpointConfig(checkpoint_at_end=True),
     ),
     param_space=config,
@@ -57,7 +57,7 @@ tuner = ray.tune.Tuner(
 
 # Run training and save the result
 result_grid = tuner.fit()
-"""
+
 
 _ = input("Training finished... Waiting for input")
 
@@ -75,7 +75,7 @@ ppo = Algorithm.from_checkpoint(best_result.checkpoint)'''
 ppo = Algorithm.from_checkpoint('results_rllib/PPO_2024-04-28_09-58-56/PPO_mobile-medium-ma-v0_d62c3_00000_0_2024-04-28_09-58-56/checkpoint_000000')
 # create the env for testing
 # pass rgb_array as render mode so the env can be rendered inside the notebook
-env = gymnasium.make("mobile-medium-ma-v0", render_mode="human")
+env = gymnasium.make("mobile-small-ma-v0", render_mode="human")
 obs, info = env.reset()
 done = False
 

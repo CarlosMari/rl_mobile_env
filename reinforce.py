@@ -13,7 +13,7 @@ import gymnasium as gym
 from gymnasium import logger
 from gymnasium.wrappers.monitoring import video_recorder
 
-from NNAgent import VApproximationWithNN, NNAgent
+from agents.NNAgent import VApproximationWithNN, NNAgent
 
 VIDEO_PATH = 'VIDEO/'
 CHECKPOINT_PATH = 'CHECKPOINT'

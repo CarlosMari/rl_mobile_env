@@ -112,7 +112,7 @@ class VApproximationWithNN(nn.Module):
         states = torch.tensor(states).to(torch.float32).to(self.DEVICE)
         self.optimizer.zero_grad()
         G = torch.from_numpy(G).to(torch.float).to(self.DEVICE)
-        loss = self.loss(self(states, train=False), G)
+        loss = self.loss(self(states, train=False).squeeze(1), G)
         loss.backward()
         self.optimizer.step()
         return loss.detach().cpu()

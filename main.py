@@ -3,14 +3,15 @@ import numpy as np
 import gymnasium as gym
 import mobile_env 
 from reinforce import REINFORCE, Baseline
-from NNAgent import VApproximationWithNN, NNAgent 
-from HeuristicAgent import HeuristicAgentSNR, HeuristicAgentUtility
+from agents.NNAgent import VApproximationWithNN, NNAgent 
+from agents.HeuristicAgent import HeuristicAgentSNR, HeuristicAgentUtility
+from agents.RandomAgent import RandomAgent
 import wandb
 import torch
 import argparse
 
 parser = argparse.ArgumentParser(prog='Mobile-ENV')
-parser.add_argument('--agent', choices=['reinforce','utility','snr'], default='utility')
+parser.add_argument('--agent', choices=['reinforce','utility','snr','random'], default='utility')
 parser.add_argument('--baseline', type=bool, default=True)
 parser.add_argument('--episodes', type=int, default=10000)
 parser.add_argument('--name', type=str, default='Test')
@@ -43,6 +44,8 @@ def test_reinforce():
     elif AGENT == 'snr':
         pi = HeuristicAgentSNR(13,0,0)
 
+    elif AGENT == 'random':
+        pi = RandomAgent(13,0,0)
 
     if BASELINE:
         B = VApproximationWithNN(
@@ -55,7 +58,7 @@ def test_reinforce():
 
 if __name__ == "__main__":
     if LOG:
-        wandb.init(project='MOBILE-ENV',name = NAME)
+        wandb.init(project='MOBILE-ENV_2',name = NAME)
 
     for _ in range(NUM_ITER):
         training_progress = test_reinforce()
